@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Configures the Camel Context-->
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mongo="http://www.springframework.org/schema/data/mongo" xmlns:gate="http://gate.ac.uk/ns/spring"
+       xsi:schemaLocation="
+                  http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+                  http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd
+                  http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
+                  http://gate.ac.uk/ns/spring http://gate.ac.uk/ns/spring.xsd">
+
+    <context:property-placeholder location="classpath:vento-web.properties"/>
+
+    <import resource="vento-beans.xml" />
+    <import resource="vento-persistence.xml" />
+
+    <camelContext xmlns="http://camel.apache.org/schema/spring" autoStartup="false">
+        <!--properties>
+            <property key="http.proxyHost" value="proxylb.internal.epo.org"/>
+            <property key="http.proxyPort" value="80"/>
+            <property key="http.proxyAuthUsername" value="lf84914" />
+            <property key="http.proxyAuthPassword" value="ribeira7" />
+        </properties-->
+
+        <package>org.vento.routes</package>
+        <!--<package>org.vento.semantics.route</package>-->
+
+        <!-- Twitter crawler -->
+        <endpoint id="sourceFileQuery" uri="file:${input.dir}?fileName=sourceQuery.txt&amp;noop=true&amp;idempotent=false&amp;delay=480000"/>
+        <endpoint id="rejectTwitterLocation" uri="file:${reject.dir}?fileName=twitter-reject-$simple{date:now:yyMMddHHmmssSSSS}.xml" />
+        <endpoint id="rejectLocation" uri="file:${reject.dir}?fileName=reject-$simple{date:now:yyMMddHHmmssSSSS}.xml" />
+        <!--<endpoint id="outputDirectory" uri="file:${output.dir}?fileName=twitter-output-$simple{date:now:yyMMddHHmmssSSSS}.xml" />-->
+        <!--endpoint id="outputDirectory" uri="${output.dir}" /-->
+        <endpoint id="outputQueue" uri="${outputQueue.uri}" />
+
+        <!-- Twitter CSV importer -->
+        <endpoint id="sourceFileImporter" uri="file:${input.dir}/import?noop=true&amp;idempotent=true&amp;delay=10000"/>
+
+        <!-- Amazon Reviews -->
+        <endpoint id="sourceFileReviews" uri="file:${inputReviews.dir}?fileName=sourceFileReviews.txt&amp;noop=true" />
+        <endpoint id="outputReviewsDirectory" uri="file:${outputReviews.dir}?fileName=amazonReview-output-$simple{date:now:yyMMddHHmmssSSSS}.xml" />
+        <endpoint id="rejectReviewsLocation" uri="file:${reject.dir}?fileName=amazonReview-reject-$simple{date:now:yyMMddHHmmssSSSS}.xml" />
+
+        <!-- Classification route -->
+        <endpoint id="mongoQueryClassification" uri="file:src/data/in?fileName=mongoQueryClassification.txt&amp;noop=true&amp;idempotent=false&amp;delay=90000" />
+
+        <!-- Training route -->
+        <endpoint id="mongoQueryTraining" uri="file:src/data/in?fileName=mongoQueryTraining.txt&amp;noop=true&amp;idempotent=false&amp;delay=600000" />
+        <endpoint id="trainingTemp" uri="file:${training.dir}?fileName=training-$simple{date:now:yyMMddHHmmssSSSS}.xml" />
+
+        <!-- Testing route -->
+        <endpoint id="mongoQueryTesting" uri="file:src/data/in?fileName=mongoQueryTesting.txt&amp;noop=true&amp;idempotent=false&amp;delay=600000" />
+
+        <!-- MONGODB Generic endpoints -->
+        <endpoint id="mongoStorageFindAll" uri="mongodb:mongoDb?database=vento&amp;collection=reports&amp;operation=findAll" />
+        <endpoint id="mongoStorageSave" uri="mongodb:mongoDb?database=vento&amp;collection=reports&amp;operation=save" />
+        <endpoint id="mongoStorageSaveImport" uri="mongodb:mongoDb?database=vento&amp;collection=tweetsImport&amp;operation=save" />
+
+        <!-- MONGODB Specific endpoints -->
+        <endpoint id="mongoSearchHistorySave" uri="mongodb:mongoDb?database=vento&amp;collection=searches&amp;operation=save" />
+
+    </camelContext>
+
+</beans>

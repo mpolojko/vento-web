@@ -1,0 +1,7 @@
+target
+.idea/*
+*.class
+overlays
+.iml
+vento-web.iml
+*.camelLock

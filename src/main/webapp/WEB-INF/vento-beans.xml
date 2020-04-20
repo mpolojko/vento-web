@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mongo="http://www.springframework.org/schema/data/mongo" xmlns:gate="http://gate.ac.uk/ns/spring"
+       xsi:schemaLocation="
+                  http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+                  http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd
+                  http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
+                  http://gate.ac.uk/ns/spring http://gate.ac.uk/ns/spring.xsd">
+
+    <!-- Twitter (pre)processors -->
+    <bean id="twitterPreprocessor" class="org.vento.crawler.twitter.processor.TwitterPreprocessor"/>
+    <bean id="twitter4jPreprocessor" class="org.vento.crawler.twitter.processor.Twitter4jPreprocessor"/>
+    <bean id="trainingDataPreprocessor" class="org.vento.sentiment.training.processor.TrainingDataPreprocessor"/>
+
+
+    <!-- Live classification -->
+    <bean id="twitterLiveClassificationProcessor"
+          class="org.vento.crawler.twitter.processor.TwitterLiveClassificationProcessor">
+        <property name="classificationWrapper" ref="classificationWrapper" />
+    </bean>
+
+    <bean id="freetextLiveClassificationProcessor"
+          class="org.vento.sentiment.classification.processor.FreeTextLiveClassificationProcessor">
+        <property name="classificationWrapper" ref="classificationWrapper" />
+    </bean>
+
+    <!-- this part might not be necessary anymore  -->
+
+    <bean id="gateEvaluationClassifier" class="org.vento.sentiment.gate.SentiBatchClassificationImpl" lazy-init="true">
+        <property name="gateHome" value="${gate.home}"/>
+        <property name="gateConfigFile" value="${gate.evaluation}"/>
+        <property name="corpusName" value="evaluationTestCorpus"/>
+    </bean>
+
+    <bean id="gateEvaluationProcessor" class="org.vento.sentiment.evaluation.SentiBatchEvaluationProcessor">
+        <property name="classifier" ref="gateEvaluationClassifier"/>
+    </bean>
+
+
+    <!-- GATE spring setup -->
+
+    <gate:init gate-home="${gate.home}" user-config-file="${gate.userFile}"/>
+
+    <!-- training -->
+
+    <gate:saved-application location="${gate.training}" id="trainingApp"/>
+    <bean id="trainingWrapperProcessor" class="org.vento.sentiment.training.processor.TrainingWrapperProcessor">
+        <property name="trainer" ref="trainingApp"/>
+        <property name="corpusDirectory" value="${gate.training.corpusDirectory}"/>
+    </bean>
+
+    <!-- classification -->
+
+    <gate:duplicate id="classificationApp">
+        <gate:saved-application location="${gate.classification}"/>
+    </gate:duplicate>
+
+    <bean id="gateProcessor" class="gate.util.LanguageAnalyserDocumentProcessor">
+        <property name="analyser" ref="classificationApp"/>
+        <gate:pooled-proxy max-size="10"/>
+    </bean>
+
+    <bean id="classificationWrapper" class="org.vento.sentiment.classification.ClassificationWrapper" >
+        <property name="classifier" ref="gateProcessor" />
+    </bean>
+
+    <bean id="gateClassificationProcessor"
+          class="org.vento.sentiment.classification.processor.SentiBatchClassificationProcessor">
+
+        <property name="classificationWrapper" ref="classificationWrapper"/>
+    </bean>
+
+    <!-- evaluation -->
+
+    <bean id="ventoCalculationProcessor" class="org.vento.sentiment.evaluation.VentoCalculationProcessor">
+
+        <property name="classificationWrapper" ref="classificationWrapper"/>
+    </bean>
+</beans>
